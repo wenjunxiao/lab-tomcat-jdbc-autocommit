@@ -1,5 +1,6 @@
 # lab-tomcat-jdbc-autocommit
-# tomcat-jdbc-commit-when-autocommit-equals-true
+
+## 问题
 
 使用`tomcat-jdbc`时出现`Can't call commit when autocommit=true`，错误信息如下
 ```log
@@ -10,9 +11,11 @@
 java.sql.SQLException: Can't call commit when autocommit=true
 ```
 
+## 分析
+
 这个错误的意思是：自动提交的情况下不需要再执行`commit`操作。通常我们会把`autocommit`设置为`true`，这样非事务的操作都是自动提交的，
 只有开启事务的时候才需要把`autocommit`设置为`false`，并在事务结束的时候执行`commit`/`rollback`操作，然后再把`autocommit`设置为`true`。
-也就是说执行某个非事务操作完成之后执行了非预期的`commit`操作才会导致以上的异常，即有两个检测`autocommit`的位置状态不一致导致的。
+也就是说执行某个非事务操作完成之后执行了非预期的`commit`操作才会导致以上的异常，应该有两个检测`autocommit`的位置状态不一致导致的。
 
 跑出`Can't call commit when autocommit=true`这个异常的代码在`mysql-connector-java-5.1.42.jar`的`com.mysql.jdbc.ConnectionImpl`中，
 使用mybatis获取数据库连接的`org.mybatis.spring.transaction.SpringManagedTransaction.openConnection`的地方通过`this.connection.getAutoCommit()`
@@ -49,6 +52,8 @@ class ConnectionState {
 }
 ```
 
+## 复现
+
 知道了问题的原因，如何复现这个问题呢？
 我们只需要在`setAutoCommit(true)`的时候模拟异常即可，为了更贴近实际应用的情况，需要模拟服务端断开连接，因此需要准备两个账户，一个用于执行业务代码，
 另一个用于Kill连接来模拟断开连接。
@@ -80,3 +85,18 @@ $ curl http://127.0.0.1:8080/test/add
 $ curl http://127.0.0.1:8080/test/get
 {"timestamp":1690722907640,"status":500,"error":"Internal Server Error","exception":"org.springframework.jdbc.UncategorizedSQLException","message":"\n### Error committing transaction.  Cause: java.sql.SQLException: Can't call commit when autocommit=true\n### Cause: java.sql.SQLException: Can't call commit when autocommit=true\n; uncategorized SQLException for SQL []; SQL state [null]; error code [0]; Can't call commit when autocommit=true; nested exception is java.sql.SQLException: Can't call commit when autocommit=true","path":"/test/get"}
 ```
+
+测试时只需要修改数据库的IP和端口即可，并通过配置以下不同的参数模拟断开连接的时机
+```yaml
+# 模拟连接到只读库
+mock-readonly: false
+# 开始事务后检测是否只读时断开连接
+kill-condition: session.tx_read_only
+# 开始事务并提交后重置自动提交时断开连接
+#kill-condition: autocommit=1
+#kill-condition: not-kill
+```
+
+## 结论
+
+暂时不要使用`ConnectionState`或者使用其他数据库连接池。

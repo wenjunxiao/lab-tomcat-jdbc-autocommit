@@ -15,6 +15,7 @@ spring:
       validation-query: SELECT 1
       time-between-eviction-runs-millis: 18800
       jdbc-interceptors: ConnectionState;SlowQueryReport(threshold=100)
+      #jdbc-interceptors: SlowQueryReport(threshold=100)
     root:
       url: jdbc:mysql://127.0.0.1:3307/information_schema
       dirver-class-name: com.mysql.jdbc.Driver
