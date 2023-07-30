@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.github.wenjunxiao.lab</groupId>
+  <artifactId>lab-tomcat-jdbc-autocommit</artifactId>
+  <version>1.0-SNAPSHOT</version>
+
+
+  <properties>
+    <maven.compiler.source>8</maven.compiler.source>
+    <maven.compiler.target>8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>1.5.4.RELEASE</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.mybatis.spring.boot</groupId>
+      <artifactId>mybatis-spring-boot-starter</artifactId>
+      <version>2.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+    </dependency>
+    <!--    <dependency>-->
+    <!--      <groupId>org.aspectj</groupId>-->
+    <!--      <artifactId>aspectjrt</artifactId>-->
+    <!--      <version>1.9.7</version>-->
+    <!--    </dependency>-->
+    <!--    <dependency>-->
+    <!--      <groupId>org.aspectj</groupId>-->
+    <!--      <artifactId>aspectjweaver</artifactId>-->
+    <!--      <version>1.9.7</version>-->
+    <!--    </dependency>-->
+    <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy</artifactId>
+      <version>1.14.5</version>
+    </dependency>
+    <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy-agent</artifactId>
+      <version>1.14.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <!--      <plugin>-->
+      <!--        <groupId>org.codehaus.mojo</groupId>-->
+      <!--        <artifactId>aspectj-maven-plugin</artifactId>-->
+      <!--        <version>1.14.0</version>-->
+      <!--        <configuration>-->
+      <!--          <complianceLevel>1.8</complianceLevel>-->
+      <!--          <source>1.8</source>-->
+      <!--          <target>1.8</target>-->
+      <!--          <showWeaveInfo>true</showWeaveInfo>-->
+      <!--          <encoding>UTF-8</encoding>-->
+      <!--          <verbose>true</verbose>-->
+      <!--          <outxml>true</outxml>-->
+      <!--          <weaveDependencies>-->
+      <!--            <weaveDependency>-->
+      <!--              <groupId>mysql</groupId>-->
+      <!--              <artifactId>mysql-connector-java</artifactId>-->
+      <!--            </weaveDependency>-->
+      <!--          </weaveDependencies>-->
+      <!--        </configuration>-->
+      <!--        <executions>-->
+      <!--          <execution>-->
+      <!--            <phase>process-sources</phase>-->
+      <!--            <goals>-->
+      <!--              <goal>compile</goal>-->
+      <!--              <goal>test-compile</goal>-->
+      <!--            </goals>-->
+      <!--          </execution>-->
+      <!--        </executions>-->
+      <!--      </plugin>-->
+    </plugins>
+  </build>
+</project>

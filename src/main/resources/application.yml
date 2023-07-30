@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    test:
+      url: jdbc:mysql://localhost:3307/test?autoReconnect=true
+      dirver-class-name: com.mysql.jdbc.Driver
+      username: test-tomcat-jdbc
+      password: test
+      initial-size: 1
+      max-active: 1
+      min-idle: 1
+      max-wait: 10000
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      validation-query: SELECT 1
+      time-between-eviction-runs-millis: 18800
+      jdbc-interceptors: ConnectionState;SlowQueryReport(threshold=100)
+    root:
+      url: jdbc:mysql://127.0.0.1:3307/information_schema
+      dirver-class-name: com.mysql.jdbc.Driver
+      username: root-tomcat-jdbc
+      password: test
+      initial-size: 1
+      max-active: 1
+      min-idle: 1
+      max-wait: 10000
+logging:
+  level:
+    ROOT: INFO
+    java.sql: TRACE
+    org.springframework.jdbc: TRACE
+    org.springframework.transaction: TRACE
+    org.mybatis: TRACE
+
+# 模拟连接到只读库
+mock-readonly: false
+# 开始事务后检测是否只读时断开连接
+kill-condition: session.tx_read_only
+# 开始事务并提交后重置自动提交时断开连接
+#kill-condition: autocommit=1
+#kill-condition: not-kill
