@@ -16,6 +16,7 @@ spring:
       time-between-eviction-runs-millis: 18800
       jdbc-interceptors: ConnectionState;SlowQueryReport(threshold=100)
       #jdbc-interceptors: SlowQueryReport(threshold=100)
+      #jdbc-interceptors: io.github.wenjunxiao.lab.aspect.ConnectionStateFixed;SlowQueryReport(threshold=100)
     root:
       url: jdbc:mysql://127.0.0.1:3307/information_schema
       dirver-class-name: com.mysql.jdbc.Driver
@@ -40,3 +41,5 @@ kill-condition: session.tx_read_only
 # 开始事务并提交后重置自动提交时断开连接
 #kill-condition: autocommit=1
 #kill-condition: not-kill
+# 是否修复ConnectionState的问题
+fix-connection-state: false

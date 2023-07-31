@@ -1,8 +1,8 @@
 # lab-tomcat-jdbc-autocommit
 
-## 问题
+## Question
 
-使用`tomcat-jdbc`时出现`Can't call commit when autocommit=true`，错误信息如下
+When using `tomcat-jdbc`, `Can't call commit when autocommit=true` appears, and the error message is as follows
 ```log
 ### Error committing transaction.  Cause: java.sql.SQLException: Can't call commit when autocommit=true
 ### Cause: java.sql.SQLException: Can't call commit when autocommit=true
@@ -11,52 +11,57 @@
 java.sql.SQLException: Can't call commit when autocommit=true
 ```
 
-## 分析
+## Analysis
 
-这个错误的意思是：自动提交的情况下不需要再执行`commit`操作。通常我们会把`autocommit`设置为`true`，这样非事务的操作都是自动提交的，
-只有开启事务的时候才需要把`autocommit`设置为`false`，并在事务结束的时候执行`commit`/`rollback`操作，然后再把`autocommit`设置为`true`。
-也就是说执行某个非事务操作完成之后执行了非预期的`commit`操作才会导致以上的异常，应该有两个检测`autocommit`的位置状态不一致导致的。
+The meaning of this error is that there is no need to perform the 'commit' operation in the case of automatic submission. 
+Usually, we set `autocommit` to `false`, so that non-transactional operations are automatically committed,
+It is only necessary to set `autocommit` to `false` when starting a transaction, and execute the `commit`/`rollback`
+operation at the end of the transaction, and then set `autocommit` to `true`.
+That is to say, the unexpected `commit` operation performed after a non-transactional is completed will cause the above exception, 
+which should be caused by the inconsistent status of the two `autocommit` cache.
 
-跑出`Can't call commit when autocommit=true`这个异常的代码在`mysql-connector-java-5.1.42.jar`的`com.mysql.jdbc.ConnectionImpl`中，
-使用mybatis获取数据库连接的`org.mybatis.spring.transaction.SpringManagedTransaction.openConnection`的地方通过`this.connection.getAutoCommit()`
-获取`autoCommit`的值，并在`commit()`通过`this.connection != null && !this.isConnectionTransactional && !this.autoCommit`判断是否需要在
-数据库连接上执行最终的提交`this.connection.commit()`，也就是这个地方的状态判断和数据库连接上的状态不一致导致执行了非预期的`commit()`操作。
+The code that throws the exception `Can't call commit when autocommit=true` is in the class `com.mysql.jdbc.ConnectionImpl` 
+of `mysql-connector-java-5.1.42.jar`. In `org.mybatis.spring.transaction.SpringManagedTransaction.openConnection`, 
+mybatis use `this.connection.getAutoCommit()` to obtain the database connection's `autoCommit` status.
+And then use the `autoCommit` status to determine if it is necessary to call `this.connection.commit()`.
+This is where inconsistent states lead to unexpected execution `commit()`.
 
-通过调试跟踪最终确定是因为`org.apache.tomcat.jdbc.pool.interceptor.ConnectionState`缓存了状态，并且在异常的情况下和连接上的状态不一致导致，
-其大概的逻辑代码（非实际代码）如下
+Through debugging and tracking, it was ultimately determined that `org.apache.tomcat.jdbc.pool.interceptor.ConnectionState`
+cached the state and caused inconsistency with the state on the connection in abnormal situations.
+The logical code (non-actual code) is as follows
 ```java
 class ConnectionState {
   boolean getAutoCommit() {
-    if (autoCommit == null) {
+    if (autoCommit == null) { // cache if null
       autoCommit = connection.getAutoCommit();
     }
     return autoCommit;
   }
   void setAutoCommit(boolean value) {
     connection.setAutoCommit(value);
-    this.autoCommit = value;
+    this.autoCommit = value; // update cache value
   }
 }
 ```
-以上代码中只要`connection.setAutoCommit`出现异常就会导致状态不一致，缓存的逻辑需要调整成
+Any exceptions in the above code `connection.setAutoCommit` will result in inconsistent states, and the cache logic needs to be adjusted to
 ```java
 class ConnectionState {
   void setAutoCommit(boolean value) {
     try {
       connection.setAutoCommit(value);
       this.autoCommit = value;
-    } catch (Exception e) {
-      this.autoCommit = null; // 异常时清空，以便重新获取最新状态
+    } catch (Throwable e) {
+      this.autoCommit = null; // reset if any exception
     }
   }
 }
 ```
 
-## 复现
+## Recurrent
 
-知道了问题的原因，如何复现这个问题呢？
-我们只需要在`setAutoCommit(true)`的时候模拟异常即可，为了更贴近实际应用的情况，需要模拟服务端断开连接，因此需要准备两个账户，一个用于执行业务代码，
-另一个用于Kill连接来模拟断开连接。
+Knowing the cause of the problem, how to reproduce it?
+We only need to simulate exceptions during `setAutoCommit(true)`. In order to be more practical, we need to simulate server disconnection.
+Therefore, we need to prepare two accounts, one for executing business code, another is used to kill connections to simulate disconnection.
 ```sql 
 CREATE TABLE `test`(
     id INT(11) AUTO_INCREMENT NOT NULL,
@@ -73,30 +78,38 @@ GRANT ALL ON *.* TO 'root-tomcat-jdbc'@'localhost';
 
 FLUSH PRIVILEGES;
 ```
-为了使用`ConnectionState`需要在业务的数据库连接池的配置`jdbc-interceptors`中包含`ConnectionState`，正常来说如果连接被断开之后，
-连接会被剔除掉（`tomcat-jdbc`的连接池没有剔除导致一直不可用），因此还需要在数据库连接的`url`中增加`autoReconnect=true`确保断开后自动连接避免被剔除。
-有了已经配置，运行应用之后请求新增接口之后就会触发Kill。
+
+In order to use `ConnectionState`, you need to include `ConnectionState` in the configuration `jdbc-interceptors` of the database connection pool.
+Normally, if the connection is disconnected, the connection will be removed (but `tomcat-jdbc` not, which will cause always unavailable).
+Therefore, `autoReconnect=true` needs to be added to the `url` of the database connection to ensure that the automatic connection is not removed after disconnection.
+With the configuration already in place, after running the application and requesting the addition of an interface, Kill will be triggered.
 ```sh
 $ curl http://127.0.0.1:8080/test/add
 ```
-此时会发现日志中有`Communications link failure`的错误信息，但是后续的检测数据库连接又是正常的，因为`autoReconnect=true`自动连接成功了。
-但是再次请求则会报`Can't call commit when autocommit=true`的错误了
+
+At this point, it will be found that there is an error message of `Communications link failure` in the log,
+but the subsequent detection of database connection is normal because `autoReconnect=true` automatically connected successfully.
+But requesting again will result in an error of `Can't call commit when autocommit=true`
 ```sh
 $ curl http://127.0.0.1:8080/test/get
 {"timestamp":1690722907640,"status":500,"error":"Internal Server Error","exception":"org.springframework.jdbc.UncategorizedSQLException","message":"\n### Error committing transaction.  Cause: java.sql.SQLException: Can't call commit when autocommit=true\n### Cause: java.sql.SQLException: Can't call commit when autocommit=true\n; uncategorized SQLException for SQL []; SQL state [null]; error code [0]; Can't call commit when autocommit=true; nested exception is java.sql.SQLException: Can't call commit when autocommit=true","path":"/test/get"}
 ```
 
-测试时只需要修改数据库的IP和端口即可，并通过配置以下不同的参数模拟断开连接的时机
+During testing, only the IP and port of the database need to be modified, and the timing of disconnection can be simulated by configuring the following different parameters
 ```yaml
-# 模拟连接到只读库
+# simulate connecting to a read-only server
 mock-readonly: false
-# 开始事务后检测是否只读时断开连接
+# disconnect when detecting read-only status after starting a transaction
 kill-condition: session.tx_read_only
-# 开始事务并提交后重置自动提交时断开连接
+# disconnect when starting a transaction and resetting automatic commit after commit
 #kill-condition: autocommit=1
+# not kill
 #kill-condition: not-kill
+# fix the issue with `ConnectionState`
+fix-connection-state: false
 ```
 
-## 结论
+## Conclusion
 
-暂时不要使用`ConnectionState`或者使用其他数据库连接池。
+Do not use `ConnectionState` until repair, or use other database Connection pool. 
+Alternatively, fix the problem by rewriting it (such as `io.github.wenjunxiao.lab.aspect.ConnectionStateFixed`).

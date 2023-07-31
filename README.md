@@ -17,7 +17,7 @@ java.sql.SQLException: Can't call commit when autocommit=true
 只有开启事务的时候才需要把`autocommit`设置为`false`，并在事务结束的时候执行`commit`/`rollback`操作，然后再把`autocommit`设置为`true`。
 也就是说执行某个非事务操作完成之后执行了非预期的`commit`操作才会导致以上的异常，应该有两个检测`autocommit`的位置状态不一致导致的。
 
-跑出`Can't call commit when autocommit=true`这个异常的代码在`mysql-connector-java-5.1.42.jar`的`com.mysql.jdbc.ConnectionImpl`中，
+抛出`Can't call commit when autocommit=true`这个异常的代码在`mysql-connector-java-5.1.42.jar`的`com.mysql.jdbc.ConnectionImpl`中，
 使用mybatis获取数据库连接的`org.mybatis.spring.transaction.SpringManagedTransaction.openConnection`的地方通过`this.connection.getAutoCommit()`
 获取`autoCommit`的值，并在`commit()`通过`this.connection != null && !this.isConnectionTransactional && !this.autoCommit`判断是否需要在
 数据库连接上执行最终的提交`this.connection.commit()`，也就是这个地方的状态判断和数据库连接上的状态不一致导致执行了非预期的`commit()`操作。
@@ -45,7 +45,7 @@ class ConnectionState {
     try {
       connection.setAutoCommit(value);
       this.autoCommit = value;
-    } catch (Exception e) {
+    } catch (Throwable e) {
       this.autoCommit = null; // 异常时清空，以便重新获取最新状态
     }
   }
@@ -95,8 +95,10 @@ kill-condition: session.tx_read_only
 # 开始事务并提交后重置自动提交时断开连接
 #kill-condition: autocommit=1
 #kill-condition: not-kill
+# 是否修复ConnectionState的问题
+fix-connection-state: false
 ```
 
 ## 结论
 
-暂时不要使用`ConnectionState`或者使用其他数据库连接池。
+在修复之前暂时不要使用`ConnectionState`，或者使用其他数据库连接池。或者通过重写(比如`io.github.wenjunxiao.lab.aspect.ConnectionStateFixed`)来修复问题

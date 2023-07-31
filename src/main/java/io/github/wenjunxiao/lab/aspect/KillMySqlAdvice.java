@@ -33,6 +33,7 @@ public class KillMySqlAdvice {
 
   private static String replaceQuery(String query, int killStatus) {
     if (query == null) return null;
+    // 由于本地只有MySQL8，修正不兼容的变量
     return query.replaceAll("@@query_cache_size", "0")
             .replaceAll("@@query_cache_type", "'OFF'")
             .replaceAll("@@tx_isolation", "'REPEATABLE-READ'")
