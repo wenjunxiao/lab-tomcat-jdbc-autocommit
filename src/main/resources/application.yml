@@ -1,7 +1,7 @@
 spring:
   datasource:
     test:
-      url: jdbc:mysql://localhost:3307/test?autoReconnect=true
+      url: jdbc:mysql://mysql.example.local:3306/test?autoReconnect=true
       dirver-class-name: com.mysql.jdbc.Driver
       username: test-tomcat-jdbc
       password: test
@@ -17,8 +17,9 @@ spring:
       jdbc-interceptors: ConnectionState;SlowQueryReport(threshold=100)
       #jdbc-interceptors: SlowQueryReport(threshold=100)
       #jdbc-interceptors: io.github.wenjunxiao.lab.aspect.ConnectionStateFixed;SlowQueryReport(threshold=100)
+      #jdbc-interceptors: io.github.wenjunxiao.lab.aspect.ConnectionStatePatch;SlowQueryReport(threshold=100)
     root:
-      url: jdbc:mysql://127.0.0.1:3307/information_schema
+      url: jdbc:mysql://mysql.example.local:3306/information_schema
       dirver-class-name: com.mysql.jdbc.Driver
       username: root-tomcat-jdbc
       password: test
